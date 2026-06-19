@@ -10,10 +10,10 @@
 // ---------------------------------------------------------------------------
 export const meta = {
   marca: 'OMNISCAN',
-  logo: '/assets/logo-omniscan.png',
+  logo: '/assets/logo-omniscan.svg',
   subtitulo: 'Reconfigurable UAV swarms for humanitarian response',
   contexto:
-    'Group 6 · Integrating Project · 1st Cycle · Aerospace Engineering · IST · 2026',
+    'Group 6 · 1st Cycle Integrating Project in Aerospace Engineering · IST · 2026',
 };
 
 export const hero = {
@@ -250,15 +250,22 @@ export const rodape = {
   reportPath: '/docs/Relatorio_Omniscan_final.pdf',
   creditos:
     'Group 6 · Advisor Prof. Frederico Afonso · In partnership with ISR-Lisbon · IST · 2026',
+  equipaTitulo: 'The team',
+  // Team members + LinkedIn. Each name links to its profile; leave `linkedin`
+  // empty ('') to render a styled placeholder (just paste the URL later).
+  // NOTE: confirm/replace Dinis' URL below with the real profile link.
   equipa: [
-    'António Teixeira',
-    'Beatriz Amaral',
-    'Bruno Marques',
-    'Dinis Novais',
-    'Laura Fernandes',
-    'Lucas Moreira',
-    'Maria Bastos',
-    'Miguel Batalha',
-    'Sofia Gomes',
+    {
+      nome: 'Dinis Amorim Novais',
+      linkedin: 'https://www.linkedin.com/in/dinis-amorim-novais/',
+    },
+    { nome: 'António Teixeira', linkedin: '' },
+    { nome: 'Beatriz Amaral', linkedin: '' },
+    { nome: 'Bruno Marques', linkedin: '' },
+    { nome: 'Laura Fernandes', linkedin: '' },
+    { nome: 'Lucas Moreira', linkedin: '' },
+    { nome: 'Maria Bastos', linkedin: '' },
+    { nome: 'Miguel Batalha', linkedin: '' },
+    { nome: 'Sofia Gomes', linkedin: '' },
   ],
 };

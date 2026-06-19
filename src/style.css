@@ -39,38 +39,10 @@
   --shadow-lg: 0 30px 60px -28px rgba(16, 24, 40, 0.28);
   --ease: cubic-bezier(0.22, 1, 0.36, 1);
 
-  /* Theme-specific surfaces (overridden in dark below) */
+  /* 3D stage surface */
   --stage-bg: radial-gradient(120% 120% at 50% 12%, #f4f7fa 0%, #e8eef3 62%, #dde6ed 100%);
   --stage-inset: rgba(255, 255, 255, 0.8);
   --hero-bg-opacity: 0.42; /* faint drone background (change in [0.35–0.5]) */
-}
-
-/* Dark theme — kept legible: KPIs/tables use the accent on dark surfaces.
-   Set by the inline script in index.html and the toggle (data-theme on <html>). */
-[data-theme='dark'] {
-  --bg: #0b0f14;
-  --bg-2: #0e141b;
-  --surface: #121a23;
-  --surface-2: #18222d;
-  --line: #243140;
-  --line-soft: #1a232e;
-
-  --text: #e9eef4;
-  --muted: #98a6b4;
-  --muted-2: #6c7a89;
-
-  --accent: #8B8FE8; /* lighter indigo for contrast on dark */
-  --accent-strong: #A0A4F0;
-  --accent-ink: #0e0f24; /* dark text on the light accent */
-  --accent-soft: rgba(139, 143, 232, 0.12);
-  --accent-line: rgba(139, 143, 232, 0.25);
-
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
-  --shadow: 0 1px 2px rgba(0, 0, 0, 0.35), 0 14px 34px -16px rgba(0, 0, 0, 0.6);
-  --shadow-lg: 0 30px 60px -28px rgba(0, 0, 0, 0.7);
-
-  --stage-bg: radial-gradient(120% 120% at 50% 12%, #16202b 0%, #0e151d 65%, #0a1016 100%);
-  --stage-inset: rgba(255, 255, 255, 0.04);
 }
 
 /* Reset ------------------------------------------------------------------- */
@@ -84,9 +56,6 @@ html {
   scroll-behavior: smooth;
   scroll-padding-top: var(--header-h);
   color-scheme: light;
-}
-html[data-theme='dark'] {
-  color-scheme: dark;
 }
 
 body {
@@ -264,9 +233,6 @@ button {
 .brand__logo.is-hidden ~ .brand__text {
   display: inline;
 }
-[data-theme='dark'] .brand__logo {
-  filter: brightness(0) invert(1);
-}
 .nav {
   display: flex;
   align-items: center;
@@ -291,40 +257,6 @@ button {
   .nav a:not(.nav-cta) {
     display: none;
   }
-}
-/* Right cluster: nav + theme toggle (toggle stays top-right, no overlap) */
-.header-right {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-}
-.theme-toggle {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 38px;
-  height: 38px;
-  border-radius: 999px;
-  border: 1px solid var(--line);
-  background: var(--surface);
-  color: var(--text);
-  transition: color 0.15s, border-color 0.15s, background 0.15s,
-    transform 0.15s var(--ease);
-}
-.theme-toggle:hover {
-  color: var(--accent);
-  border-color: var(--accent);
-  transform: translateY(-1px);
-}
-/* Show the icon of the theme you'd switch TO: moon in light, sun in dark */
-.theme-toggle .icon-sun {
-  display: none;
-}
-[data-theme='dark'] .theme-toggle .icon-moon {
-  display: none;
-}
-[data-theme='dark'] .theme-toggle .icon-sun {
-  display: block;
 }
 
 /* ==========================================================================
@@ -380,6 +312,9 @@ button {
   gap: clamp(2rem, 5vw, 4rem);
   align-items: center;
   min-height: min(80vh, 720px);
+}
+.hero__grid > * {
+  min-width: 0;
 }
 .hero__title {
   font-family: var(--font-display);
@@ -529,6 +464,11 @@ button {
   display: grid;
   grid-template-columns: 1.55fr 1fr;
   gap: 1.25rem;
+}
+/* min-width:0 lets the columns shrink below the 3D canvas's intrinsic width
+   (otherwise the canvas forces horizontal overflow on small screens). */
+.viewer > * {
+  min-width: 0;
 }
 @media (max-width: 960px) {
   .viewer {
@@ -718,14 +658,15 @@ button {
   border: 1px solid var(--line-soft);
   border-radius: var(--radius-sm);
   aspect-ratio: 3 / 2;
-  display: grid;
-  place-items: center;
   overflow: hidden;
 }
 .payload-figure img {
   width: 100%;
   height: 100%;
-  object-fit: contain;
+  /* cover = the photo fills the frame edge-to-edge, no letterboxing/gaps */
+  object-fit: cover;
+  object-position: center;
+  display: block;
 }
 .payload-body h3 {
   font-family: var(--font-display);
@@ -1064,18 +1005,49 @@ button {
   font-size: 0.9rem;
   margin: 0;
 }
-/* Team names: inline, comma-separated, one line on desktop; wraps only narrow */
+/* Team section — members link to LinkedIn; grid collapses on small screens */
 .team {
   margin: 0;
-  color: var(--muted);
-  font-size: clamp(0.62rem, 1.1vw, 0.8rem);
-  line-height: 1.6;
-  white-space: nowrap;
 }
-@media (max-width: 768px) {
-  .team {
-    white-space: normal;
-    font-size: 0.9rem;
+.team__title {
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  margin: 0 0 1rem;
+  color: var(--text);
+}
+.team__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 0.4rem 1.25rem;
+}
+.team__member {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--muted);
+  font-size: 0.92rem;
+  padding: 0.35rem 0;
+  transition: color 0.15s var(--ease);
+}
+.team__icon {
+  flex: none;
+  color: var(--muted-2);
+  transition: color 0.15s var(--ease);
+}
+a.team__member:hover,
+a.team__member:hover .team__icon {
+  color: var(--accent);
+}
+.team__member.is-placeholder {
+  color: var(--muted-2);
+  cursor: default;
+}
+@media (max-width: 480px) {
+  .team__list {
+    grid-template-columns: 1fr;
   }
 }
 .footer__brandline {
@@ -1083,6 +1055,45 @@ button {
   letter-spacing: 0.2em;
   color: var(--muted-2);
   font-size: 0.8rem;
+}
+
+/* ==========================================================================
+   Mobile polish — keep grids, tables and chips tidy on small screens
+   ========================================================================== */
+@media (max-width: 600px) {
+  .section {
+    padding-block: clamp(3rem, 12vw, 4.5rem);
+  }
+  /* price tables: less horizontal padding so 2 columns breathe on phones */
+  .price-table th,
+  .price-table td {
+    padding: 0.7rem 0.85rem;
+  }
+  .price-table table {
+    font-size: 0.9rem;
+  }
+  .price-table .price {
+    font-size: 1rem;
+  }
+  .card,
+  .stream,
+  .roi-card,
+  .reconfig {
+    padding: 1.3rem;
+  }
+  .payload-tab {
+    font-size: 0.82rem;
+    padding: 0.6rem 0.3rem;
+  }
+  .stage {
+    min-height: 280px;
+  }
+}
+@media (max-width: 380px) {
+  /* very narrow: let payload tabs stack rather than squeeze into 3 columns */
+  .payload-tabs {
+    grid-template-columns: 1fr 1fr;
+  }
 }
 
 /* Section entrance animation (reveal) -------------------------------- */
