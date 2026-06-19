@@ -17,11 +17,11 @@
   --muted: #5b6672;
   --muted-2: #8a95a1;
 
-  --accent: #0e7c74; /* deep teal (legible on white) */
-  --accent-strong: #0b675f;
+  --accent: #2E3192; /* deep indigo (from the logo) */
+  --accent-strong: #252780;
   --accent-ink: #ffffff; /* text on the accent */
-  --accent-soft: rgba(14, 124, 116, 0.1);
-  --accent-line: rgba(14, 124, 116, 0.22);
+  --accent-soft: rgba(46, 49, 146, 0.08);
+  --accent-line: rgba(46, 49, 146, 0.20);
 
   /* Typography ------------------------------------------------------------ */
   --font-body: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
@@ -59,11 +59,11 @@
   --muted: #98a6b4;
   --muted-2: #6c7a89;
 
-  --accent: #2fe6d6; /* brighter teal for contrast on dark */
-  --accent-strong: #4cf0e2;
-  --accent-ink: #04201d; /* dark text on the bright accent */
-  --accent-soft: rgba(47, 230, 214, 0.14);
-  --accent-line: rgba(47, 230, 214, 0.3);
+  --accent: #8B8FE8; /* lighter indigo for contrast on dark */
+  --accent-strong: #A0A4F0;
+  --accent-ink: #0e0f24; /* dark text on the light accent */
+  --accent-soft: rgba(139, 143, 232, 0.12);
+  --accent-line: rgba(139, 143, 232, 0.25);
 
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
   --shadow: 0 1px 2px rgba(0, 0, 0, 0.35), 0 14px 34px -16px rgba(0, 0, 0, 0.6);
@@ -201,7 +201,7 @@ button {
 }
 .btn-primary:hover {
   background: var(--accent-strong);
-  box-shadow: 0 12px 26px -12px rgba(14, 124, 116, 0.6);
+  box-shadow: 0 12px 26px -12px rgba(46, 49, 146, 0.6);
 }
 .btn-ghost {
   background: var(--surface);
@@ -244,9 +244,28 @@ button {
   letter-spacing: 0.18em;
   font-size: 1.05rem;
   color: var(--text);
+  display: inline-flex;
+  align-items: center;
 }
 .brand .dot {
   color: var(--accent);
+}
+.brand__logo {
+  height: 30px;
+  width: auto;
+  display: block;
+}
+.brand__logo.is-hidden {
+  display: none;
+}
+.brand__text {
+  display: none;
+}
+.brand__logo.is-hidden ~ .brand__text {
+  display: inline;
+}
+[data-theme='dark'] .brand__logo {
+  filter: brightness(0) invert(1);
 }
 .nav {
   display: flex;
@@ -578,13 +597,13 @@ button {
 }
 @keyframes pulse {
   0% {
-    box-shadow: 0 0 0 0 rgba(14, 124, 116, 0.45);
+    box-shadow: 0 0 0 0 rgba(46, 49, 146, 0.45);
   }
   70% {
-    box-shadow: 0 0 0 10px rgba(14, 124, 116, 0);
+    box-shadow: 0 0 0 10px rgba(46, 49, 146, 0);
   }
   100% {
-    box-shadow: 0 0 0 0 rgba(14, 124, 116, 0);
+    box-shadow: 0 0 0 0 rgba(46, 49, 146, 0);
   }
 }
 
@@ -671,7 +690,7 @@ button {
   color: var(--accent-ink);
   background: var(--accent);
   border-color: var(--accent);
-  box-shadow: 0 8px 20px -12px rgba(14, 124, 116, 0.6);
+  box-shadow: 0 8px 20px -12px rgba(46, 49, 146, 0.6);
 }
 
 .payload-panel {

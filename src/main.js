@@ -73,10 +73,14 @@ function placeholderImg(label) {
 // --- Section rendering (HTML from the content) ------------------------------
 
 function renderHeader() {
+  const brandInner = meta.logo
+    ? `<img class="brand__logo" alt="${esc(meta.marca)}" data-src="${asset(meta.logo)}" data-fb="logo" />
+       <span class="brand__text">${esc(meta.marca)}<span class="dot">.</span></span>`
+    : `${esc(meta.marca)}<span class="dot">.</span>`;
   return `
   <header class="site-header" id="site-header">
     <div class="wrap">
-      <a class="brand" href="#top">${esc(meta.marca)}<span class="dot">.</span></a>
+      <a class="brand" href="#top">${brandInner}</a>
       <div class="header-right">
         <nav class="nav" aria-label="Main navigation">
           ${nav
@@ -401,6 +405,8 @@ function wireImages() {
         if (img.dataset.fb === 'hide') {
           img.closest('.hero__bg')?.style.setProperty('display', 'none');
           img.style.display = 'none';
+        } else if (img.dataset.fb === 'logo') {
+          img.classList.add('is-hidden');
         } else {
           img.classList.add('is-placeholder');
           img.src = placeholderImg(img.dataset.label || 'Image');

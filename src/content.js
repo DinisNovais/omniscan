@@ -10,6 +10,7 @@
 // ---------------------------------------------------------------------------
 export const meta = {
   marca: 'OMNISCAN',
+  logo: '/assets/logo-omniscan.png',
   subtitulo: 'Reconfigurable UAV swarms for humanitarian response',
   contexto:
     'Group 6 · Integrating Project · 1st Cycle · Aerospace Engineering · IST · 2026',

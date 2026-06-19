@@ -127,7 +127,7 @@ export class OmniscanViewer {
     fill.position.set(-3, 1, 4);
     this.scene.add(fill);
 
-    const rim = new THREE.DirectionalLight(0x2bb3a8, 0.35); // accent back-light
+    const rim = new THREE.DirectionalLight(0x6468d0, 0.35); // accent back-light (indigo)
     rim.position.set(-5, 2, -4);
     this.scene.add(rim);
   }
@@ -222,10 +222,10 @@ export class OmniscanViewer {
       roughness: 0.45,
     });
     const accent = new THREE.MeshStandardMaterial({
-      color: 0x0e7c74, // teal (theme accent)
+      color: 0x2e3192, // indigo (theme accent)
       metalness: 0.3,
       roughness: 0.4,
-      emissive: 0x05231f,
+      emissive: 0x0e0f24,
     });
 
     // central body (flattened lifting body)
