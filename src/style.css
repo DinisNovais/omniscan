@@ -1049,7 +1049,7 @@ button {
 .team {
   margin: 0;
   color: var(--muted);
-  font-size: clamp(0.66rem, 1.35vw, 0.9rem);
+  font-size: clamp(0.62rem, 1.1vw, 0.8rem);
   line-height: 1.6;
   white-space: nowrap;
 }
