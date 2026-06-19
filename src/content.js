@@ -251,21 +251,35 @@ export const rodape = {
   creditos:
     'Group 6 · Advisor Prof. Frederico Afonso · In partnership with ISR-Lisbon · IST · 2026',
   equipaTitulo: 'The team',
-  // Team members + LinkedIn. Each name links to its profile; leave `linkedin`
-  // empty ('') to render a styled placeholder (just paste the URL later).
-  // NOTE: confirm/replace Dinis' URL below with the real profile link.
+
   equipa: [
-    {
-      nome: 'Dinis Amorim Novais',
-      linkedin: 'https://www.linkedin.com/in/dinis-amorim-novais/',
+    { nome: 'António Teixeira', 
+      linkedin: 'https://www.linkedin.com/in/antónio-teixeira-233828286/' 
     },
-    { nome: 'António Teixeira', linkedin: '' },
-    { nome: 'Beatriz Amaral', linkedin: '' },
-    { nome: 'Bruno Marques', linkedin: '' },
-    { nome: 'Laura Fernandes', linkedin: '' },
-    { nome: 'Lucas Moreira', linkedin: '' },
-    { nome: 'Maria Bastos', linkedin: '' },
-    { nome: 'Miguel Batalha', linkedin: '' },
-    { nome: 'Sofia Gomes', linkedin: '' },
+    { nome: 'Beatriz Amaral', 
+      linkedin: 'https://www.linkedin.com/in/beatriz-c-amaral/' 
+    },
+    { nome: 'Bruno Marques',
+       linkedin: 'https://www.linkedin.com/in/bruno-marques-191668300/' 
+    },
+    {
+      nome: 'Dinis Novais',
+      linkedin: 'https://www.linkedin.com/in/dinis-novais/',
+    },
+    { nome: 'Laura Fernandes', 
+      linkedin: 'https://www.linkedin.com/in/lauramargaridofernandes/' 
+    },
+    { nome: 'Lucas Moreira', 
+      linkedin: '' 
+    },
+    { nome: 'Maria Bastos', 
+      linkedin: 'https://www.linkedin.com/in/maria-bastos0705/' 
+    },
+    { nome: 'Miguel Batalha',
+       linkedin: '' 
+    },
+    { nome: 'Sofia Gomes',
+       linkedin: 'https://www.linkedin.com/in/sofiafernandesgomes/' 
+    },
   ],
 };
