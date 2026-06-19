@@ -1,0 +1,16 @@
+# Normalize text files to LF in the repository (consistent across OS / CI).
+* text=auto eol=lf
+
+# Treat these as binary — never apply end-of-line conversion (would corrupt them).
+*.pdf binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.glb binary
+*.gltf binary
+*.mp4 binary
+*.webm binary
+*.woff binary
+*.woff2 binary
