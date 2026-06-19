@@ -10,10 +10,10 @@
 // ---------------------------------------------------------------------------
 export const meta = {
   marca: 'OMNISCAN',
-  logo: '/assets/logo-omniscan.png',
+  logo: '/assets/logo-omniscan.svg',
   subtitulo: 'Reconfigurable UAV swarms for humanitarian response',
   contexto:
-    'Group 6 · Integrating Project · 1st Cycle · Aerospace Engineering · IST · 2026',
+    'Group 6 · 1st Cycle Integrating Project in Aerospace Engineering · IST · 2026',
 };
 
 export const hero = {
@@ -250,15 +250,36 @@ export const rodape = {
   reportPath: '/docs/Relatorio_Omniscan_final.pdf',
   creditos:
     'Group 6 · Advisor Prof. Frederico Afonso · In partnership with ISR-Lisbon · IST · 2026',
+  equipaTitulo: 'The team',
+
   equipa: [
-    'António Teixeira',
-    'Beatriz Amaral',
-    'Bruno Marques',
-    'Dinis Novais',
-    'Laura Fernandes',
-    'Lucas Moreira',
-    'Maria Bastos',
-    'Miguel Batalha',
-    'Sofia Gomes',
+    { nome: 'António Teixeira', 
+      linkedin: 'https://www.linkedin.com/in/antónio-teixeira-233828286/' 
+    },
+    { nome: 'Beatriz Amaral', 
+      linkedin: 'https://www.linkedin.com/in/beatriz-c-amaral/' 
+    },
+    { nome: 'Bruno Marques',
+       linkedin: 'https://www.linkedin.com/in/bruno-marques-191668300/' 
+    },
+    {
+      nome: 'Dinis Novais',
+      linkedin: 'https://www.linkedin.com/in/dinis-novais/',
+    },
+    { nome: 'Laura Fernandes', 
+      linkedin: 'https://www.linkedin.com/in/lauramargaridofernandes/' 
+    },
+    { nome: 'Lucas Moreira', 
+      linkedin: '' 
+    },
+    { nome: 'Maria Bastos', 
+      linkedin: 'https://www.linkedin.com/in/maria-bastos0705/' 
+    },
+    { nome: 'Miguel Batalha',
+       linkedin: '' 
+    },
+    { nome: 'Sofia Gomes',
+       linkedin: 'https://www.linkedin.com/in/sofiafernandesgomes/' 
+    },
   ],
 };
