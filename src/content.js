@@ -92,9 +92,25 @@ export const plataforma = {
 //  model space (same scale/origin as the GLB). See the README, section
 //  "Tuning the payload bay", for the step-by-step.
 export const viewer = {
-  modelo: '/models/omniscan.glb',
-  bayFocus: { x: 0, y: 0, z: 0 }, // target point of the payload bay
-  bayCameraOffset: { x: 0.3, y: 0.2, z: 0.6 }, // camera position when zooming to the bay
+  modelo:          '/models/omniscan.glb',
+  modeloSemTampa:  '/models/omniscan_semtampa.glb',
+
+  // Payload bay zoom (click on a payload tab)
+  bayFocus:        { x: -0.6968, y: -0.1496, z: -0.0085 }, // calibrated 21-Jun-2025
+  bayCameraOffset: { x:  0.2,   y: -0.6,    z: -0.5  },    // from below, looking up
+
+  // Interior zoom (shown after swapping to sem-tampa model)
+  interiorFocus:        { x: -0.4849, y: 0.0652, z: 0.0352 }, // centre of the opening
+  interiorCameraOffset: { x: -0.15,  y: 0.35,   z: -0.45 },   // close look from above
+
+  // Initial overview camera
+  // x= right/left,  y= up/down,  z= front/back  (multipliers on auto-computed dist)
+  overviewAngle: { x: -0.8, y: 0.5, z: 0.7 },
+  // < 1.0 = closer,  > 1.0 = further away  (default Three.js framing = 1.5)
+  overviewZoom: 0.50,
+
+  // Axis-correction rotation (degrees). SolidWorks Z-up → GLB Y-up fix.
+  modelRotation: { x: -90, y: 0, z: 0 },
 };
 
 // Flight-video box (shown right below the 3D viewer) ------------------------

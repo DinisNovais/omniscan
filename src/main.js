@@ -172,6 +172,7 @@ function renderPlataforma() {
           </div>
           <div class="stage-controls">
             <button class="btn btn-ghost" id="btn-reset" type="button">↺ View full aircraft</button>
+            <button class="btn btn-ghost" id="btn-xray" type="button" title="View interior" hidden>View interior</button>
             <span class="stage-hint">Drag to rotate · scroll to zoom</span>
           </div>
         </div>
@@ -466,6 +467,11 @@ function initViewer() {
     modelo: asset(viewerCfg.modelo),
     bayFocus: viewerCfg.bayFocus,
     bayCameraOffset: viewerCfg.bayCameraOffset,
+    interiorFocus: viewerCfg.interiorFocus,
+    interiorCameraOffset: viewerCfg.interiorCameraOffset,
+    overviewAngle: viewerCfg.overviewAngle,
+    overviewZoom: viewerCfg.overviewZoom,
+    modelRotation: viewerCfg.modelRotation,
     onProgress: (p) => {
       overlayText.textContent = `Loading the 3D model… ${Math.round(p * 100)}%`;
     },
@@ -488,6 +494,21 @@ function initViewer() {
     showEmptyPanel();
     viewer.resetView();
   });
+
+  // X-Ray toggle — swap between full model and sem-tampa (interior) model
+  const btnXray = document.getElementById('btn-xray');
+  if (btnXray && viewerCfg.modeloSemTampa) {
+    let xrayOn = false;
+    btnXray.addEventListener('click', () => {
+      xrayOn = !xrayOn;
+      btnXray.classList.toggle('is-active', xrayOn);
+      btnXray.title = xrayOn ? 'Close cover' : 'View interior';
+      btnXray.textContent = xrayOn ? 'Close cover' : 'View interior';
+      const url = asset(xrayOn ? viewerCfg.modeloSemTampa : viewerCfg.modelo);
+      viewer.swapModel(url, xrayOn ? 'interior' : null);
+    });
+    btnXray.hidden = false;
+  }
 }
 
 function initPayloadSelector() {
