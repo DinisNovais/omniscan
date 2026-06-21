@@ -48,6 +48,28 @@ export class OmniscanViewer {
       opts.bayCameraOffset.y,
       opts.bayCameraOffset.z
     );
+    // Initial camera angle multipliers (relative to auto-computed distance)
+    this.overviewAngle = opts.overviewAngle
+      ? new THREE.Vector3(opts.overviewAngle.x, opts.overviewAngle.y, opts.overviewAngle.z)
+      : new THREE.Vector3(0.0, 0.45, 1.1);
+    // < 1 = closer, > 1 = further (default framing factor is 1.5)
+    this.overviewZoom = opts.overviewZoom ?? 1.0;
+    // Interior focus (opening revealed after sem-tampa swap)
+    this.interiorFocus = opts.interiorFocus
+      ? new THREE.Vector3(opts.interiorFocus.x, opts.interiorFocus.y, opts.interiorFocus.z)
+      : null;
+    this.interiorCameraOffset = opts.interiorCameraOffset
+      ? new THREE.Vector3(opts.interiorCameraOffset.x, opts.interiorCameraOffset.y, opts.interiorCameraOffset.z)
+      : null;
+    // Axis-correction rotation (degrees → radians). Fixes SolidWorks Z-up exports.
+    const deg = Math.PI / 180;
+    this.modelRotation = opts.modelRotation
+      ? new THREE.Euler(
+          (opts.modelRotation.x || 0) * deg,
+          (opts.modelRotation.y || 0) * deg,
+          (opts.modelRotation.z || 0) * deg
+        )
+      : new THREE.Euler(0, 0, 0);
     this.cb = {
       onLoaded: opts.onLoaded || (() => {}),
       onError: opts.onError || (() => {}),
@@ -67,6 +89,7 @@ export class OmniscanViewer {
     this._initLights();
     this._initControls();
     this._initHotspot();
+    this._initClickDebug();   // double-click logs world coordinates (for tuning bayFocus)
     this._bindResize();
     this._loadModel();
 
@@ -163,6 +186,35 @@ export class OmniscanViewer {
     this.scene.add(this.hotspot);
   }
 
+  /**
+   * DEBUG helper — double-click on the model to log world-space coordinates.
+   * Open the browser console (F12) and double-click the payload bay area.
+   * Copy the printed {x, y, z} into content.js > viewer.bayFocus.
+   * Remove or comment out this method once calibration is done.
+   */
+  _initClickDebug() {
+    const raycaster = new THREE.Raycaster();
+    const pointer = new THREE.Vector2();
+
+    this.renderer.domElement.addEventListener('dblclick', (event) => {
+      const rect = this.renderer.domElement.getBoundingClientRect();
+      pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+      pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+      raycaster.setFromCamera(pointer, this.camera);
+      const hits = raycaster.intersectObjects(this.scene.children, true);
+      if (hits.length > 0) {
+        const p = hits[0].point;
+        console.log(
+          '%c[BAY DEBUG] Clicked point:',
+          'color: #2E3192; font-weight: bold',
+          `{ x: ${p.x.toFixed(4)}, y: ${p.y.toFixed(4)}, z: ${p.z.toFixed(4)} }`
+        );
+        console.log('  → Copy these into content.js > viewer.bayFocus');
+      }
+    });
+  }
+
   // -- Model loading --------------------------------------------------------
 
   _loadModel() {
@@ -202,13 +254,179 @@ export class OmniscanViewer {
   _onModelReady(object, isPlaceholder) {
     this.model = object;
     this.isPlaceholder = isPlaceholder;
+
+    // --- Apply axis-correction rotation BEFORE bounding-box normalisation -----
+    // (SolidWorks Z-up → GLB Y-up typically needs x: -90°)
+    if (!isPlaceholder) {
+      object.rotation.copy(this.modelRotation);
+      object.updateMatrixWorld(true);
+    }
+
+    // --- Normalize the model (center + scale) --------------------------------
+    // Three.js TRS order: worldPos = position + scale * localPos
+    // To map the bounding-box center to the world origin we need:
+    //   position + scale * center = 0  =>  position = -scale * center
+    if (!isPlaceholder) {
+      const box = new THREE.Box3().setFromObject(object);
+      const center = box.getCenter(new THREE.Vector3());
+      const size = box.getSize(new THREE.Vector3());
+
+      const TARGET_SIZE = 3;
+      const maxDim = Math.max(size.x, size.y, size.z) || 1;
+      const s = TARGET_SIZE / maxDim;
+
+      object.scale.setScalar(s);
+      object.position.copy(center).multiplyScalar(-s);
+
+      this._applyComponentColors(object);
+
+      // Log the normalized bounding box so tuning bayFocus is easy
+      const nBox = new THREE.Box3().setFromObject(object);
+      const nSize = nBox.getSize(new THREE.Vector3());
+      const nCenter = nBox.getCenter(new THREE.Vector3());
+      console.log(
+        '[viewer] Normalized model — center:',
+        nCenter, 'size:', nSize
+      );
+
+      // Apply realistic component materials
+      // (see definitions above)
+      // The material assignment block runs here after the model is scaled.
+    }
+
     this.scene.add(object);
 
     this._frameOverview(object);
+    this._swapping = false;   // allow next swapModel() call
     this.isReady = true;
     this.cb.onProgress(1);
     this.cb.onLoaded({ isPlaceholder });
+
+    // Fire any post-swap action (e.g. zoom to interior opening)
+    if (this._pendingAfterLoad) {
+      const fn = this._pendingAfterLoad;
+      this._pendingAfterLoad = null;
+      // Small delay so the model visually settles before animating
+      setTimeout(() => fn(), 200);
+    }
   }
+
+  // --------------------------------------------------------------------
+  // Realistic component coloring
+  // Strategy: match mesh names from the GLB. Because CAD exports often use
+  // generic names, we also log ALL mesh names to the console (grouped) so you
+  // can paste the exact names into the map below for precise coloring.
+  _applyComponentColors(object) {
+
+    // ── Material palette ──────────────────────────────────────────────────────
+    const mats = {
+      // Structure
+      fuselage:   new THREE.MeshStandardMaterial({ color: 0x2a2d35, metalness: 0.45, roughness: 0.50 }),
+      wing:       new THREE.MeshStandardMaterial({ color: 0x1e2030, metalness: 0.55, roughness: 0.45 }),
+      structural: new THREE.MeshStandardMaterial({ color: 0x3c3f4a, metalness: 0.60, roughness: 0.40 }),
+
+      // Propulsion
+      rotor:      new THREE.MeshStandardMaterial({ color: 0x9ca3af, metalness: 0.90, roughness: 0.18 }),
+      motor:      new THREE.MeshStandardMaterial({ color: 0x4b5563, metalness: 0.85, roughness: 0.25 }),
+      shaft:      new THREE.MeshStandardMaterial({ color: 0xb0b8c1, metalness: 0.95, roughness: 0.10 }),
+
+      // Electronics — PCBs
+      pcb:        new THREE.MeshStandardMaterial({ color: 0x1a4731, metalness: 0.10, roughness: 0.80 }), // dark green FR4
+      pcbCopper:  new THREE.MeshStandardMaterial({ color: 0xb87333, metalness: 0.90, roughness: 0.30 }), // copper traces
+      chip:       new THREE.MeshStandardMaterial({ color: 0x111318, metalness: 0.20, roughness: 0.70 }), // IC packages
+      connector:  new THREE.MeshStandardMaterial({ color: 0xd4a017, metalness: 0.80, roughness: 0.25 }), // gold-plated pins
+      heatsink:   new THREE.MeshStandardMaterial({ color: 0x6b7a8d, metalness: 0.75, roughness: 0.35 }),
+
+      // Power
+      battery:    new THREE.MeshStandardMaterial({ color: 0x1f3a5f, metalness: 0.20, roughness: 0.75 }), // LiPo blue-grey
+      wire:       new THREE.MeshStandardMaterial({ color: 0xcc2200, metalness: 0.05, roughness: 0.90 }), // red insulation
+      wireBlack:  new THREE.MeshStandardMaterial({ color: 0x111111, metalness: 0.05, roughness: 0.90 }),
+      esc:        new THREE.MeshStandardMaterial({ color: 0x2d1b69, metalness: 0.15, roughness: 0.80 }), // purple ESC
+
+      // Sensors / payload
+      camera:     new THREE.MeshStandardMaterial({ color: 0x0a0a0a, metalness: 0.50, roughness: 0.30 }),
+      sensor:     new THREE.MeshStandardMaterial({ color: 0x334155, metalness: 0.30, roughness: 0.65 }),
+      lens:       new THREE.MeshStandardMaterial({ color: 0x1e3a5f, metalness: 0.05, roughness: 0.05, envMapIntensity: 2.5 }),
+      antenna:    new THREE.MeshStandardMaterial({ color: 0xfafafa, metalness: 0.60, roughness: 0.20 }),
+
+      // Enclosures / covers
+      cover:      new THREE.MeshStandardMaterial({ color: 0x374151, metalness: 0.20, roughness: 0.70 }),
+      rubber:     new THREE.MeshStandardMaterial({ color: 0x1c1c1c, metalness: 0.00, roughness: 0.95 }),
+      foam:       new THREE.MeshStandardMaterial({ color: 0xf5c048, metalness: 0.00, roughness: 1.00 }), // yellow foam
+
+      // Fasteners
+      screw:      new THREE.MeshStandardMaterial({ color: 0xa0a9b0, metalness: 0.95, roughness: 0.15 }),
+    };
+
+    // All materials share the same envMap intensity (set via scene.environment)
+    Object.values(mats).forEach(m => { m.envMapIntensity = m.envMapIntensity ?? 1.2; });
+
+    // ── Name → keyword map ────────────────────────────────────────────────────
+    // Order matters: first match wins. Add exact mesh names at the top for
+    // precision (paste them from the console log below).
+    const rules = [
+      // Exact-name overrides — based on real mesh names found via [MESH NAMES] log
+      { exact: 'PICAcreta_3D', mat: mats.fuselage },   // main airframe body
+      { exact: 'Cube',         mat: mats.structural },  // secondary structural part
+
+      // Keyword rules
+      { kw: ['pcb', 'board', 'circuit', 'mainboard', 'flightcontroller', 'fc'],           mat: mats.pcb },
+      { kw: ['trace', 'copper', 'pad', 'track'],                                          mat: mats.pcbCopper },
+      { kw: ['chip', 'ic', 'mcu', 'processor', 'microcontroller', 'imu'],                 mat: mats.chip },
+      { kw: ['connector', 'plug', 'socket', 'jst', 'xt30', 'xt60', 'pin', 'header'],      mat: mats.connector },
+      { kw: ['heatsink', 'heat_sink', 'cooling', 'fin'],                                  mat: mats.heatsink },
+      { kw: ['battery', 'lipo', 'cell', 'accumulator'],                                   mat: mats.battery },
+      { kw: ['esc', 'speedcontroller', 'speed_controller', 'speedcontrol'],               mat: mats.esc },
+      { kw: ['wire', 'cable', 'harness', 'wiring'],                                       mat: mats.wire },
+      { kw: ['motor', 'coil', 'stator'],                                                  mat: mats.motor },
+      { kw: ['shaft', 'axle', 'driveshaft'],                                              mat: mats.shaft },
+      { kw: ['rotor', 'propeller', 'blade', 'prop'],                                      mat: mats.rotor },
+      { kw: ['camera', 'cam', 'gimbal'],                                                  mat: mats.camera },
+      { kw: ['lens', 'optic', 'glass'],                                                   mat: mats.lens },
+      { kw: ['sensor', 'lidar', 'radar', 'sonar', 'ultrasonic', 'barometer', 'gps'],      mat: mats.sensor },
+      { kw: ['antenna', 'aerial', 'whip'],                                                mat: mats.antenna },
+      { kw: ['screw', 'bolt', 'nut', 'fastener', 'standoff'],                             mat: mats.screw },
+      { kw: ['rubber', 'grommet', 'dampener', 'damper', 'pad'],                           mat: mats.rubber },
+      { kw: ['foam', 'cushion', 'insulation'],                                            mat: mats.foam },
+      { kw: ['cover', 'lid', 'cap', 'hatch', 'door', 'panel'],                            mat: mats.cover },
+      { kw: ['wing', 'winglet', 'aileron', 'elevon', 'flap'],                             mat: mats.wing },
+      { kw: ['fuselage', 'airframe', 'body', 'hull', 'frame'],                            mat: mats.fuselage },
+      { kw: ['rib', 'spar', 'stringer', 'bulkhead', 'bracket', 'mount', 'structural'],    mat: mats.structural },
+    ];
+
+    // ── Log all mesh names once (open DevTools → Console to see) ─────────────
+    const meshInfo = [];
+    object.traverse(child => {
+      if (child.isMesh) meshInfo.push({ name: child.name, parent: child.parent?.name ?? '—' });
+    });
+    if (meshInfo.length) {
+      console.groupCollapsed(`%c[MESH NAMES] ${meshInfo.length} meshes found — expand to see all`, 'color:#2E3192;font-weight:bold');
+      console.table(meshInfo);
+      console.log('Paste mesh names into the "Exact-name overrides" section of _applyComponentColors() for precise coloring.');
+      console.groupEnd();
+    }
+
+    // ── Apply materials ───────────────────────────────────────────────────────
+    object.traverse(child => {
+      if (!child.isMesh) return;
+      const n = (child.name || '').toLowerCase().replace(/[\s\-]/g, '_');
+      let assigned = false;
+
+      for (const rule of rules) {
+        if (rule.exact && rule.exact.toLowerCase() === n) {
+          child.material = rule.mat; assigned = true; break;
+        }
+        if (rule.kw && rule.kw.some(k => n.includes(k))) {
+          child.material = rule.mat; assigned = true; break;
+        }
+      }
+      if (!assigned) child.material = mats.fuselage; // fallback = charcoal
+
+      child.castShadow = true;
+      child.receiveShadow = true;
+    });
+  }
+
 
   /**
    * Primitive aircraft (simplified Blended Wing Body) for when the .glb is
@@ -280,13 +498,13 @@ export class OmniscanViewer {
 
     const radius = Math.max(size.x, size.y, size.z) * 0.5 || 1;
     const fov = THREE.MathUtils.degToRad(this.camera.fov);
-    const dist = (radius / Math.sin(fov / 2)) * 1.5;
+    const dist = (radius / Math.sin(fov / 2)) * 1.5 * (this.overviewZoom ?? 1.0);
 
-    // camera slightly above and in front, 3/4 view
+    // camera position driven by overviewAngle so it is configurable from content.js
     this.overviewPos = new THREE.Vector3(
-      center.x + dist * 0.55,
-      center.y + dist * 0.42,
-      center.z + dist * 0.9
+      center.x + dist * this.overviewAngle.x,
+      center.y + dist * this.overviewAngle.y,
+      center.z + dist * this.overviewAngle.z
     );
     this.overviewTarget = center.clone();
 
@@ -313,7 +531,39 @@ export class OmniscanViewer {
     this.controls.autoRotate = false;
   }
 
-  /** Returns the camera to the overview and hides the hotspot. */
+  /** Zoom to the interior opening (used after swapping to sem-tampa model). */
+  focusInterior() {
+    if (!this.isReady || !this.interiorFocus) return;
+    const target = this.interiorFocus.clone();
+    const pos = this.interiorFocus.clone().add(this.interiorCameraOffset);
+    this._startTween(pos, target);
+    this.controls.autoRotate = false;
+  }
+
+  /** Swap the loaded GLB for a different URL. afterLoad: 'interior' | null */
+  swapModel(url, afterLoad) {
+    if (this._swapping) return;
+    this._swapping = true;
+    this._pendingAfterLoad = afterLoad === 'interior' ? () => this.focusInterior() : null;
+
+    // Remove current model from scene
+    if (this.model) {
+      this.scene.remove(this.model);
+      this.model.traverse(child => {
+        if (child.isMesh) {
+          child.geometry.dispose();
+          if (Array.isArray(child.material)) child.material.forEach(m => m.dispose());
+          else child.material?.dispose();
+        }
+      });
+      this.model = null;
+    }
+
+    this.isReady = false;
+    this.modelUrl = url;
+    this._loadModel();
+  }
+
   resetView() {
     if (!this.isReady) return;
     this._startTween(this.overviewPos.clone(), this.overviewTarget.clone());
