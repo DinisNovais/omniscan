@@ -194,6 +194,12 @@ button {
   color: var(--accent);
 }
 
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
 /* ==========================================================================
    Fixed header
    ========================================================================== */
@@ -330,8 +336,8 @@ button {
   position: relative;
   z-index: 1;
   display: grid;
-  grid-template-columns: 1.05fr 1fr;
-  gap: clamp(2rem, 5vw, 4rem);
+  grid-template-columns: 0.85fr 1.25fr;
+  gap: clamp(2rem, 6vw, 5rem);
   align-items: center;
   min-height: min(80vh, 720px);
 }
@@ -373,6 +379,8 @@ button {
 .hero__media {
   position: relative;
   margin: 0;
+  transform: translateX(6%) scale(1.08);
+  transform-origin: center center;
 }
 
 .hero__media-glow {
@@ -390,7 +398,7 @@ button {
   z-index: 1;
   width: 100%;
   height: auto;
-  aspect-ratio: 4 / 3;
+  aspect-ratio: 3 / 2;
   object-fit: contain;
   filter: drop-shadow(0 30px 50px rgba(16, 24, 40, 0.18));
 }
@@ -411,6 +419,7 @@ button {
   .hero__media {
     order: -1;
     /* drone first on mobile */
+    transform: none;
   }
 
   .hero__img {
@@ -481,23 +490,41 @@ button {
 }
 
 .spec-strip {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  margin: 1.5rem 0 0;
-  padding: 0;
   list-style: none;
+  margin: 1.75rem 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.7rem 1.75rem;
+  max-width: 640px;
 }
 
 .spec-strip li {
-  font-size: 0.82rem;
+  position: relative;
+  padding-left: 1.65rem;
+  font-size: 0.98rem;
   font-weight: 500;
   color: var(--text);
-  border: 1px solid var(--line);
-  background: var(--surface);
-  border-radius: 999px;
-  padding: 0.4rem 0.85rem;
-  white-space: nowrap;
+  line-height: 1.3;
+}
+
+/* Accent dot with a soft halo — clean, on-brand, no pill */
+.spec-strip li::before {
+  content: '';
+  position: absolute;
+  left: 0.15rem;
+  top: 0.5em;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 4px var(--accent-soft);
+}
+
+@media (max-width: 520px) {
+  .spec-strip {
+    grid-template-columns: 1fr;
+  }
 }
 
 .viewer {
@@ -666,6 +693,14 @@ button {
   gap: 1rem;
 }
 
+.mission-hint {
+  font-size: 0.8rem;
+  color: #666;
+  margin: 0;
+  /* .payload-col has gap:1rem between children; trim it to ~6px under the hint */
+  margin-bottom: calc(6px - 1rem);
+}
+
 .payload-tabs {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -693,6 +728,45 @@ button {
   background: var(--accent);
   border-color: var(--accent);
   box-shadow: 0 8px 20px -12px rgba(46, 49, 146, 0.6);
+}
+
+/* Mission tabs hold longer labels (e.g. "Wildfire re-ignitions"): let them
+   wrap and keep every cell the same height. */
+#mission-tabs .payload-tab {
+  line-height: 1.2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+/* Sub-tabs inside the panel (e.g. Demining → Flora / Magno) */
+.payload-subtabs {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.payload-subtab {
+  flex: 1;
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--muted);
+  padding: 0.4rem 0.75rem;
+  font-weight: 600;
+  font-size: 0.82rem;
+  transition: all 0.18s var(--ease);
+}
+
+.payload-subtab:hover {
+  color: var(--text);
+  border-color: var(--accent-line);
+}
+
+.payload-subtab.is-active {
+  color: var(--accent-ink);
+  background: var(--accent);
+  border-color: var(--accent);
 }
 
 .payload-panel {
