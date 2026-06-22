@@ -42,7 +42,7 @@ export const problema = {
   etiqueta: 'The problem',
   titulo: 'One platform. Three missions.',
   intro:
-    'Humanitarian crises — earthquakes, floods, wildfires, conflict — expose critical gaps in reaching contaminated or destroyed terrain. Omniscan answers with a heterogeneous swarm and a reconfigurable payload: one vehicle, three missions.',
+    'Earthquakes, floods, wildfires, conflict. The ground that needs eyes on it is usually the ground nobody can safely reach. Omniscan covers it with a mixed swarm and a swappable payload: one aircraft, three missions.',
 };
 
 export const missoes = [
@@ -50,19 +50,19 @@ export const missoes = [
     id: 'demining',
     nome: 'Demining',
     resumo:
-      'A technical survey that flags plastic mines (vegetation stress) and confirms metallic targets and UXO.',
+      'Flags plastic mines by the vegetation stress above them, then confirms metal and UXO.',
   },
   {
     id: 'sar',
     nome: 'Search and Rescue',
     resumo:
-      'Detects the human thermal signature (36–37 °C) through smoke, at night or in avalanches, with coordinate-only alerts.',
+      'Picks out a body heat signature (36-37 °C) through smoke, at night, or under avalanche snow. Alerts are coordinates only.',
   },
   {
     id: 'reignition',
     nome: 'Wildfire re-ignitions',
     resumo:
-      'Persistent patrol of hidden hotspots across burned terrain, in LWIR.',
+      'Patrols burned ground for hidden hotspots in LWIR, long after the fire looks out.',
   },
 ];
 
@@ -73,7 +73,7 @@ export const plataforma = {
   etiqueta: 'The platform',
   titulo: 'See Omniscan. Swap the payload.',
   intro:
-    'A single Blended Wing Body airframe, fully electric VTOL. Rotate the model and pick a mission — the matching payload loads in the bay and the real sensor appears alongside.',
+    'One blended-wing-body airframe, fully electric VTOL. Rotate it, pick a mission, and the matching payload drops into the bay with the real sensor shown next to it.',
   // Platform spec strip (rendered as "chips")
   specs: [
     'BWB',
@@ -93,7 +93,7 @@ export const plataforma = {
 export const viewer = {
   // Model shown on load, before any mission is picked (overview of the airframe).
   // The per-mission CADs live on each payload (see `payloads[].modelo`).
-  modeloDefault:   '/models/omniscanflora.glb',
+  modeloDefault: '/models/omniscanflora.glb',
 
   // Payload-bay / interior framing. These are computed from the model's own
   // bounding box, so they work for any CAD regardless of its scale/origin.
@@ -105,14 +105,16 @@ export const viewer = {
   //   The bay opens on the belly → look UP from below. The interior (cover
   //   removed) is on TOP → look DOWN from above (positive y dir, target raised
   //   slightly above centre via a negative drop).
-  bayView:      { drop: 0.15,  dist: 1.4, dir: { x: 0.25, y: -0.85, z: 0.45 } }, // click a mission/payload
-  interiorView: { drop: -0.10, dist: 1.1, dir: { x: 0.2,  y:  0.9,  z: 0.45 } }, // after "View interior" (from above)
+  bayView: { drop: 0.15, dist: 2.2, dir: { x: 0.25, y: -0.85, z: 0.45 } }, // click a mission/payload
+  interiorView: { drop: -0.10, dist: 2.0, dir: { x: 0.2, y: 0.9, z: 0.45 } }, // after "View interior" (from above)
 
   // Initial overview camera
   // x= right/left,  y= up/down,  z= front/back  (multipliers on auto-computed dist)
   overviewAngle: { x: -0.8, y: 0.5, z: 0.7 },
   // < 1.0 = closer,  > 1.0 = further away  (default Three.js framing = 1.5)
-  overviewZoom: 0.50,
+  // The stage is taller now (matches the right panel), and a fixed vertical FOV
+  // makes the model look bigger in a taller viewport — so pull the camera back.
+  overviewZoom: 0.68,
 
   // Shift the overview pivot off the bounding-box centre so the aircraft is framed
   // more towards its front/nose (the geometric centre sits too far back). Units are
@@ -155,12 +157,12 @@ export const video = {
 export const payloads = [
   {
     id: 'flora',
-    nome: 'Flora — Multispectral',
+    nome: 'Flora · Multispectral',
     curto: 'Flora',
-    imagem: '/assets/payload-flora.jpg',
+    imagem: '/assets/payload-flora-removebg-preview.png',
     missao: 'Demining (vegetation stress)',
     missaoIds: ['demining'],
-    modelo:         '/models/omniscanflora.glb',
+    modelo: '/models/omniscanflora.glb',
     modeloSemTampa: '/models/omniscanflora_semtampa.glb',
     specs: [
       'MicaSense RedEdge-P',
@@ -172,14 +174,14 @@ export const payloads = [
   },
   {
     id: 'magno',
-    nome: 'Magno — Magnetometer',
+    nome: 'Magno · Magnetometer',
     curto: 'Magno',
-    imagem: '/assets/payload-magno.jpg',
+    imagem: '/assets/payload-magno-removebg-preview.png',
     missao: 'Demining (metallic targets / UXO)',
     missaoIds: ['demining'],
-    modelo:         '/models/omniscanmagno.glb',
+    modelo: '/models/omniscanmagno.glb',
     modeloSemTampa: '/models/omniscanmagno_semtampa.glb',
-    modelRotation:  { x: -90, y: 0, z: 0 }, // Magno GLB is Z-up → needs the -90° fix
+    modelRotation: { x: -90, y: 0, z: 0 }, // Magno GLB is Z-up → needs the -90° fix
 
     specs: [
       'Stefan Mayer FLC3-70 Fluxgate',
@@ -191,17 +193,17 @@ export const payloads = [
   },
   {
     id: 'thermal',
-    nome: 'Thermal — FLIR Lepton 3.5',
+    nome: 'Thermal · FLIR Lepton 3.5',
     curto: 'Thermal',
-    imagem: '/assets/payload-termico.jpg',
+    imagem: '/assets/payload-termico-removebg-preview.png',
     missao: 'Search and rescue + re-ignitions',
     missaoIds: ['sar', 'reignition'],
-    modelo:         '/models/omniscanthermal.glb',
+    modelo: '/models/omniscanthermal.glb',
     modeloSemTampa: '/models/omniscanthermal_semtampa.glb',
     specs: [
       'FLIR Lepton 3.5',
       '160 × 120 px',
-      'LWIR 8–14 µm',
+      'LWIR 8-14 µm',
       '< 50 mK',
       '< 1 g',
     ],
@@ -215,25 +217,25 @@ export const negocio = {
   etiqueta: 'Business model',
   titulo: 'We sell swarms, not drones.',
   intro:
-    'One platform, several ways to acquire and grow capability in the field.',
+    'One platform, a few ways to buy in and scale up in the field.',
   fluxos: [
     {
       nome: 'Turnkey swarms',
-      desc: 'Complete swarms, calibrated and ready to operate for each mission.',
+      desc: 'Full swarms, calibrated and ready to fly a given mission.',
     },
     {
       nome: 'Payload upgrades',
-      desc: 'Sensor modules to reconfigure the fleet and open new missions.',
+      desc: 'Sensor modules that re-task the fleet and open new missions.',
     },
     {
       nome: 'Maintenance & consumables',
-      desc: 'Parts, batteries and support that keep field operations running.',
+      desc: 'Spares, batteries and support to keep crews in the air.',
     },
   ],
   reconfig: {
-    titulo: 'Reconfigurability is the multiplier',
+    titulo: 'Reconfiguration is the multiplier',
     texto:
-      'SAR and fire missions use the SAME thermal vehicle, and the demining swarm’s relays come from the same pool. Whoever owns a demining swarm already has the airframes for SAR or fire missions — just re-equip the payload. New capability is bought by swapping modules and scaling nodes, not by buying three fleets.',
+      'SAR and fire fly the same thermal aircraft, and a demining swarm reuses relays from the same pool. Own a demining swarm and you already hold the airframes for SAR or fire; just re-equip the payload. New capability comes from swapping modules and adding nodes, not from buying three fleets.',
   },
 };
 
@@ -265,7 +267,7 @@ export const retorno = {
   etiqueta: 'Return on investment',
   titulo: 'The investment case.',
   nota:
-    'Note: these figures are capital recovery, not full-lifecycle return — they exclude operating costs and recurring revenue. Releasing land back to use (avoiding full clearance at ~€26,700/ha) only strengthens the case.',
+    'These figures are capital recovery, not full-lifecycle return: they leave out operating costs and recurring revenue. Putting land back into use, instead of full clearance at about €26,700/ha, only strengthens the case.',
 };
 
 export const roi = [
@@ -273,17 +275,17 @@ export const roi = [
     kpi: '~47 ha',
     label: 'Break-even for the demining swarm',
     detalhe:
-      'Survey ~€2,770/ha vs full clearance >€26,730/ha; drone+AI saves ~€1,385/ha; €65,400 ÷ €1,385 ≈ 47 ha.',
+      'Survey runs ~€2,770/ha against full clearance above €26,730/ha. Drone and AI save ~€1,385/ha, so €65,400 / €1,385 works out to about 47 ha.',
   },
   {
     kpi: '~20×',
     label: 'Cheaper than a helicopter (SAR)',
-    detalhe: '€80–150/h of flight vs €2,000–3,000/h for a helicopter.',
+    detalhe: '€80-150/h in the air against €2,000-3,000/h for a helicopter.',
   },
   {
     kpi: '+800%',
     label: 'Survey productivity gain',
-    detalhe: 'Drone+AI workflows cover the area in days, not months.',
+    detalhe: 'Drone and AI cover the area in days, not months.',
   },
 ];
 
@@ -300,33 +302,41 @@ export const rodape = {
   equipaTitulo: 'The team',
 
   equipa: [
-    { nome: 'António Teixeira', 
-      linkedin: 'https://www.linkedin.com/in/antónio-teixeira-233828286/' 
+    {
+      nome: 'António Teixeira',
+      linkedin: 'https://www.linkedin.com/in/antónio-teixeira-233828286/'
     },
-    { nome: 'Beatriz Amaral', 
-      linkedin: 'https://www.linkedin.com/in/beatriz-c-amaral/' 
+    {
+      nome: 'Beatriz Amaral',
+      linkedin: 'https://www.linkedin.com/in/beatriz-c-amaral/'
     },
-    { nome: 'Bruno Marques',
-       linkedin: 'https://www.linkedin.com/in/bruno-marques-191668300/' 
+    {
+      nome: 'Bruno Marques',
+      linkedin: 'https://www.linkedin.com/in/bruno-marques-191668300/'
     },
     {
       nome: 'Dinis Novais',
       linkedin: 'https://www.linkedin.com/in/dinis-novais/',
     },
-    { nome: 'Laura Fernandes', 
-      linkedin: 'https://www.linkedin.com/in/lauramargaridofernandes/' 
+    {
+      nome: 'Laura Fernandes',
+      linkedin: 'https://www.linkedin.com/in/lauramargaridofernandes/'
     },
-    { nome: 'Lucas Moreira', 
-      linkedin: '' 
+    {
+      nome: 'Lucas Moreira',
+      linkedin: ''
     },
-    { nome: 'Maria Bastos', 
-      linkedin: 'https://www.linkedin.com/in/maria-bastos0705/' 
+    {
+      nome: 'Maria Bastos',
+      linkedin: 'https://www.linkedin.com/in/maria-bastos0705/'
     },
-    { nome: 'Miguel Batalha',
-       linkedin: '' 
+    {
+      nome: 'Miguel Batalha',
+      linkedin: ''
     },
-    { nome: 'Sofia Gomes',
-       linkedin: 'https://www.linkedin.com/in/sofiafernandesgomes/' 
+    {
+      nome: 'Sofia Gomes',
+      linkedin: 'https://www.linkedin.com/in/sofiafernandesgomes/'
     },
   ],
 };

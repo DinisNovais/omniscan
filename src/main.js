@@ -161,39 +161,45 @@ function renderPlataforma() {
         ${plataforma.specs.map((s) => `<li>${esc(s)}</li>`).join('')}
       </ul>
 
-      <div class="viewer">
-        <!-- 3D stage column -->
-        <div class="stage-col">
-          <div class="stage" id="stage" aria-label="Omniscan 3D model">
-            <div class="stage__overlay" id="stage-overlay">
-              <div class="spinner"></div>
-              <p id="stage-overlay-text">Loading the 3D model…</p>
+      <!-- One unified card holds the 3D viewer, the mission selector and the
+           controls footer (no card-within-a-card). -->
+      <div class="viewer-card">
+        <div class="viewer">
+          <!-- 3D stage column -->
+          <div class="stage-col">
+            <div class="stage" id="stage" aria-label="Omniscan 3D model">
+              <div class="stage__overlay" id="stage-overlay">
+                <div class="spinner"></div>
+                <p id="stage-overlay-text">Loading model…</p>
+              </div>
             </div>
           </div>
-          <div class="stage-controls">
-            <button class="btn btn-ghost" id="btn-reset" type="button">↺ View full aircraft</button>
-            <button class="btn btn-ghost" id="btn-xray" type="button" title="View interior" hidden>View interior</button>
-            <span class="stage-hint">Drag to rotate · scroll to zoom</span>
+
+          <!-- Mission selector + specs panel column -->
+          <div class="payload-col">
+            <p class="mission-hint">${esc(plataforma.seletorHint)}</p>
+            <div class="payload-tabs" id="mission-tabs" role="tablist" aria-label="Missions">
+              ${missoes
+                .map(
+                  (m) => `
+                <button class="payload-tab" type="button" role="tab"
+                  id="tab-${esc(m.id)}" data-mission="${esc(m.id)}" aria-selected="false">
+                  ${esc(m.nome)}
+                </button>`
+                )
+                .join('')}
+            </div>
+            <div class="payload-panel" id="payload-panel">
+              <p class="payload-empty">${esc(plataforma.painelVazio)}</p>
+            </div>
           </div>
         </div>
 
-        <!-- Mission selector + specs panel column -->
-        <div class="payload-col">
-          <p class="mission-hint">${esc(plataforma.seletorHint)}</p>
-          <div class="payload-tabs" id="mission-tabs" role="tablist" aria-label="Missions">
-            ${missoes
-              .map(
-                (m) => `
-              <button class="payload-tab" type="button" role="tab"
-                id="tab-${esc(m.id)}" data-mission="${esc(m.id)}" aria-selected="false">
-                ${esc(m.nome)}
-              </button>`
-              )
-              .join('')}
-          </div>
-          <div class="payload-panel" id="payload-panel">
-            <p class="payload-empty">${esc(plataforma.painelVazio)}</p>
-          </div>
+        <!-- Controls footer strip, flush inside the same card -->
+        <div class="viewer-footer">
+          <button class="btn btn-ghost" id="btn-reset" type="button">↺ View full aircraft</button>
+          <button class="btn btn-ghost" id="btn-xray" type="button" title="View interior" hidden>View interior</button>
+          <span class="stage-hint">Drag to rotate · scroll to zoom</span>
         </div>
       </div>
 
@@ -485,7 +491,7 @@ function initViewer() {
     overviewTargetOffset: viewerCfg.overviewTargetOffset,
     modelRotation: viewerCfg.modelRotation,
     onProgress: (p) => {
-      overlayText.textContent = `Loading the 3D model… ${Math.round(p * 100)}%`;
+      overlayText.textContent = `Loading model… ${Math.round(p * 100)}%`;
     },
     onLoaded: () => {
       overlay.hidden = true;
@@ -567,8 +573,20 @@ function loadPayloadModel(payload, interior) {
     else viewer.focusBay(payload.curto);
     return;
   }
+  showStageOverlay(); // a different CAD is downloading — show the loader
   const rotation = payload.modelRotation || viewerCfg.modelRotation;
   viewer.swapModel(url, interior ? 'interior' : 'bay', payload.curto, rotation);
+}
+
+// Show the centered "Loading model…" overlay over the stage (used on swaps;
+// the initial load shows it from the markup). onLoaded hides it again.
+function showStageOverlay() {
+  const overlay = document.getElementById('stage-overlay');
+  const text = document.getElementById('stage-overlay-text');
+  if (!overlay) return;
+  overlay.classList.remove('is-error');
+  if (text) text.textContent = 'Loading model…';
+  overlay.hidden = false;
 }
 
 // Back to the full-aircraft overview with nothing selected.
@@ -581,7 +599,10 @@ function resetToOverview() {
   showEmptyPanel();
   const url = asset(viewerCfg.modeloDefault);
   if (viewer?.isReady && viewer.modelUrl === url) viewer.resetView();
-  else viewer?.swapModel(url, null, '', viewerCfg.modelRotation);
+  else {
+    showStageOverlay();
+    viewer?.swapModel(url, null, '', viewerCfg.modelRotation);
+  }
 }
 
 function setActiveMissionTab(id) {
