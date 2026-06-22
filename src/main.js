@@ -177,15 +177,16 @@ function renderPlataforma() {
           </div>
         </div>
 
-        <!-- Selector + specs panel column -->
+        <!-- Mission selector + specs panel column -->
         <div class="payload-col">
-          <div class="payload-tabs" id="payload-tabs" role="tablist" aria-label="Payload modules">
-            ${payloads
+          <p class="mission-hint">${esc(plataforma.seletorHint)}</p>
+          <div class="payload-tabs" id="mission-tabs" role="tablist" aria-label="Missions">
+            ${missoes
               .map(
-                (p) => `
+                (m) => `
               <button class="payload-tab" type="button" role="tab"
-                id="tab-${esc(p.id)}" data-id="${esc(p.id)}" aria-selected="false">
-                ${esc(p.curto)}
+                id="tab-${esc(m.id)}" data-mission="${esc(m.id)}" aria-selected="false">
+                ${esc(m.nome)}
               </button>`
               )
               .join('')}
@@ -396,7 +397,7 @@ function mount() {
   initReveal();
   wireImages();
   initViewer();
-  initPayloadSelector();
+  initMissionSelector();
 }
 
 // Loads every img[data-src] and, on error, applies its fallback strategy:
@@ -457,6 +458,18 @@ function initReveal() {
 
 let viewer = null;
 
+// Payload active by default: its CAD is the one shown on load and after "View
+// full aircraft". Keeping it set (never null) means "View interior" works
+// immediately, without first picking a mission. It matches modeloDefault so the
+// loaded airframe and the interior CAD always belong to the same payload.
+const DEFAULT_PAYLOAD =
+  payloads.find((p) => p.modelo === viewerCfg.modeloDefault) || payloads[0];
+
+// Platform selector state
+let currentPayload = DEFAULT_PAYLOAD; // payload whose CAD is loaded (never null)
+let currentSiblings = []; // payloads of the active mission (drives the sub-tabs)
+let xrayOn = false; // is the interior (sem-tampa) CAD currently shown?
+
 function initViewer() {
   const stage = document.getElementById('stage');
   const overlay = document.getElementById('stage-overlay');
@@ -464,13 +477,12 @@ function initViewer() {
 
   viewer = new OmniscanViewer({
     container: stage,
-    modelo: asset(viewerCfg.modelo),
-    bayFocus: viewerCfg.bayFocus,
-    bayCameraOffset: viewerCfg.bayCameraOffset,
-    interiorFocus: viewerCfg.interiorFocus,
-    interiorCameraOffset: viewerCfg.interiorCameraOffset,
+    modelo: asset(viewerCfg.modeloDefault), // overview shown before a mission is picked
+    bayView: viewerCfg.bayView,
+    interiorView: viewerCfg.interiorView,
     overviewAngle: viewerCfg.overviewAngle,
     overviewZoom: viewerCfg.overviewZoom,
+    overviewTargetOffset: viewerCfg.overviewTargetOffset,
     modelRotation: viewerCfg.modelRotation,
     onProgress: (p) => {
       overlayText.textContent = `Loading the 3D model… ${Math.round(p * 100)}%`;
@@ -489,53 +501,99 @@ function initViewer() {
     },
   });
 
-  document.getElementById('btn-reset').addEventListener('click', () => {
-    clearActiveTab();
-    showEmptyPanel();
-    viewer.resetView();
-  });
+  document.getElementById('btn-reset').addEventListener('click', resetToOverview);
 
-  // X-Ray toggle — swap between full model and sem-tampa (interior) model
+  // X-Ray toggle — swap between the CURRENT payload's full and sem-tampa CADs.
+  // Disabled until a mission/payload is selected.
   const btnXray = document.getElementById('btn-xray');
-  if (btnXray && viewerCfg.modeloSemTampa) {
-    let xrayOn = false;
-    btnXray.addEventListener('click', () => {
-      xrayOn = !xrayOn;
-      btnXray.classList.toggle('is-active', xrayOn);
-      btnXray.title = xrayOn ? 'Close cover' : 'View interior';
-      btnXray.textContent = xrayOn ? 'Close cover' : 'View interior';
-      const url = asset(xrayOn ? viewerCfg.modeloSemTampa : viewerCfg.modelo);
-      viewer.swapModel(url, xrayOn ? 'interior' : null);
-    });
-    btnXray.hidden = false;
-  }
+  btnXray.addEventListener('click', () => {
+    if (!currentPayload || !currentPayload.modeloSemTampa) return;
+    xrayOn = !xrayOn;
+    updateXrayButton();
+    loadPayloadModel(currentPayload, xrayOn);
+  });
+  btnXray.hidden = false;
+  updateXrayButton();
 }
 
-function initPayloadSelector() {
-  const tabs = document.getElementById('payload-tabs');
+// Reflect the interior-view state on the X-Ray button (label + enabled state).
+function updateXrayButton() {
+  const btn = document.getElementById('btn-xray');
+  if (!btn) return;
+  btn.disabled = !(currentPayload && currentPayload.modeloSemTampa);
+  btn.classList.toggle('is-active', xrayOn);
+  btn.title = xrayOn ? 'Close cover' : 'View interior';
+  btn.textContent = xrayOn ? 'Close cover' : 'View interior';
+}
+
+function initMissionSelector() {
+  const tabs = document.getElementById('mission-tabs');
   tabs.addEventListener('click', (e) => {
     const btn = e.target.closest('.payload-tab');
     if (!btn) return;
-    const id = btn.dataset.id;
-    const payload = payloads.find((p) => p.id === id);
-    if (!payload) return;
-
-    setActiveTab(id);
-    showPayloadPanel(payload);
-    viewer?.focusBay(payload.curto); // animates camera to the bay + lights the hotspot
+    selectMission(btn.dataset.mission);
   });
 }
 
-function setActiveTab(id) {
-  document.querySelectorAll('.payload-tab').forEach((t) => {
-    const on = t.dataset.id === id;
+// Pick a mission: gather its payload(s) and load the first one. Missions with
+// more than one payload (e.g. Demining → Flora + Magno) get sub-tabs in the panel.
+function selectMission(missionId) {
+  const missionPayloads = payloads.filter((p) =>
+    (p.missaoIds || []).includes(missionId)
+  );
+  if (!missionPayloads.length) return;
+  setActiveMissionTab(missionId);
+  currentSiblings = missionPayloads;
+  selectPayload(missionPayloads[0]);
+}
+
+// Load a payload into the bay: swap to its CAD (if needed) and show its sensor.
+function selectPayload(payload) {
+  currentPayload = payload;
+  xrayOn = false; // a freshly picked payload always starts on the closed CAD
+  updateXrayButton();
+  showPayloadPanel(payload, currentSiblings);
+  loadPayloadModel(payload, false);
+}
+
+// Load the right GLB for a payload. interior=true uses the sem-tampa CAD and
+// zooms into the opening; otherwise it frames the payload bay. Skips reloading
+// when the URL is unchanged (Flora and Thermal share the same airframe CAD).
+function loadPayloadModel(payload, interior) {
+  if (!viewer) return;
+  const url = asset(interior ? payload.modeloSemTampa : payload.modelo);
+  if (viewer.isReady && viewer.modelUrl === url) {
+    if (interior) viewer.focusInterior();
+    else viewer.focusBay(payload.curto);
+    return;
+  }
+  const rotation = payload.modelRotation || viewerCfg.modelRotation;
+  viewer.swapModel(url, interior ? 'interior' : 'bay', payload.curto, rotation);
+}
+
+// Back to the full-aircraft overview with nothing selected.
+function resetToOverview() {
+  clearActiveMissionTab();
+  currentPayload = DEFAULT_PAYLOAD; // keep a default so "View interior" stays usable
+  currentSiblings = [];
+  xrayOn = false;
+  updateXrayButton();
+  showEmptyPanel();
+  const url = asset(viewerCfg.modeloDefault);
+  if (viewer?.isReady && viewer.modelUrl === url) viewer.resetView();
+  else viewer?.swapModel(url, null, '', viewerCfg.modelRotation);
+}
+
+function setActiveMissionTab(id) {
+  document.querySelectorAll('#mission-tabs .payload-tab').forEach((t) => {
+    const on = t.dataset.mission === id;
     t.classList.toggle('is-active', on);
     t.setAttribute('aria-selected', on ? 'true' : 'false');
   });
 }
 
-function clearActiveTab() {
-  document.querySelectorAll('.payload-tab').forEach((t) => {
+function clearActiveMissionTab() {
+  document.querySelectorAll('#mission-tabs .payload-tab').forEach((t) => {
     t.classList.remove('is-active');
     t.setAttribute('aria-selected', 'false');
   });
@@ -546,10 +604,29 @@ function showEmptyPanel() {
   panel.innerHTML = `<p class="payload-empty">${esc(plataforma.painelVazio)}</p>`;
 }
 
-function showPayloadPanel(p) {
+// Render the selected payload: optional sub-tabs (when the mission has several
+// payloads, e.g. Demining), the real sensor photo and its specs.
+function showPayloadPanel(p, siblings = []) {
   const panel = document.getElementById('payload-panel');
+  const subtabs =
+    siblings.length > 1
+      ? `<div class="payload-subtabs" role="tablist" aria-label="Payload">
+          ${siblings
+            .map(
+              (s) => `<button class="payload-subtab${
+                s.id === p.id ? ' is-active' : ''
+              }" type="button" role="tab" data-id="${esc(s.id)}"
+                aria-selected="${s.id === p.id ? 'true' : 'false'}">${esc(
+                  s.curto
+                )}</button>`
+            )
+            .join('')}
+        </div>`
+      : '';
+
   panel.innerHTML = `
     <div class="fade-swap" style="display:flex;flex-direction:column;gap:1rem;height:100%">
+      ${subtabs}
       <figure class="payload-figure">
         <img alt="${esc(p.nome)} sensor" />
       </figure>
@@ -561,6 +638,14 @@ function showPayloadPanel(p) {
         </ul>
       </div>
     </div>`;
+
+  // Sub-tab clicks switch the payload within the same mission.
+  panel.querySelectorAll('.payload-subtab').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const next = siblings.find((s) => s.id === btn.dataset.id);
+      if (next && next.id !== currentPayload?.id) selectPayload(next);
+    });
+  });
 
   // Error handler wired in JS (not inline): the real photo in /public may be
   // missing; in that case swap to a grey placeholder with the sensor name.

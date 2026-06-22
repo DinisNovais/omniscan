@@ -22,7 +22,8 @@ import {
 } from 'three/addons/renderers/CSS2DRenderer.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 
-const CAMERA_TWEEN_MS = 1000; // camera animation duration (~1 s)
+const CAMERA_TWEEN_MS = 1000; // default camera animation duration (~1 s)
+const FOCUS_TWEEN_MS = 2400; // slower zoom-in when framing the bay / interior
 
 export class OmniscanViewer {
   /**
@@ -38,38 +39,33 @@ export class OmniscanViewer {
   constructor(opts) {
     this.container = opts.container;
     this.modelUrl = opts.modelo;
-    this.bayFocus = new THREE.Vector3(
-      opts.bayFocus.x,
-      opts.bayFocus.y,
-      opts.bayFocus.z
-    );
-    this.bayCameraOffset = new THREE.Vector3(
-      opts.bayCameraOffset.x,
-      opts.bayCameraOffset.y,
-      opts.bayCameraOffset.z
-    );
+    // Bay / interior framing — computed from the model's own bounding box (so it
+    // works for any CAD, whatever its scale/origin). Each view is described by:
+    //   drop: how far below the model centre to aim (fraction of model radius),
+    //   dist: camera distance from that target (× model radius),
+    //   dir:  camera direction from the target (the payload bay is on the belly,
+    //         so the default looks up from below-front).
+    const BAY_DEFAULT = { drop: 0.15, dist: 1.4, dir: { x: 0.25, y: -0.85, z: 0.45 } };
+    const INT_DEFAULT = { drop: 0.15, dist: 1.1, dir: { x: 0.2, y: -0.8, z: 0.5 } };
+    this.bayView = { ...BAY_DEFAULT, ...(opts.bayView || {}) };
+    this.interiorView = { ...INT_DEFAULT, ...(opts.interiorView || {}) };
     // Initial camera angle multipliers (relative to auto-computed distance)
     this.overviewAngle = opts.overviewAngle
       ? new THREE.Vector3(opts.overviewAngle.x, opts.overviewAngle.y, opts.overviewAngle.z)
       : new THREE.Vector3(0.0, 0.45, 1.1);
     // < 1 = closer, > 1 = further (default framing factor is 1.5)
     this.overviewZoom = opts.overviewZoom ?? 1.0;
-    // Interior focus (opening revealed after sem-tampa swap)
-    this.interiorFocus = opts.interiorFocus
-      ? new THREE.Vector3(opts.interiorFocus.x, opts.interiorFocus.y, opts.interiorFocus.z)
-      : null;
-    this.interiorCameraOffset = opts.interiorCameraOffset
-      ? new THREE.Vector3(opts.interiorCameraOffset.x, opts.interiorCameraOffset.y, opts.interiorCameraOffset.z)
-      : null;
-    // Axis-correction rotation (degrees → radians). Fixes SolidWorks Z-up exports.
-    const deg = Math.PI / 180;
-    this.modelRotation = opts.modelRotation
-      ? new THREE.Euler(
-          (opts.modelRotation.x || 0) * deg,
-          (opts.modelRotation.y || 0) * deg,
-          (opts.modelRotation.z || 0) * deg
+    // Overview pivot offset (× model radius) — shifts framing toward the nose.
+    this.overviewTargetOffset = opts.overviewTargetOffset
+      ? new THREE.Vector3(
+          opts.overviewTargetOffset.x || 0,
+          opts.overviewTargetOffset.y || 0,
+          opts.overviewTargetOffset.z || 0
         )
-      : new THREE.Euler(0, 0, 0);
+      : new THREE.Vector3(0, 0, 0);
+    // Axis-correction rotation (degrees → radians). Fixes SolidWorks Z-up exports.
+    // Per-model: some GLBs are exported 90° off, so this can be updated on swap.
+    this.modelRotation = this._toEuler(opts.modelRotation);
     this.cb = {
       onLoaded: opts.onLoaded || (() => {}),
       onError: opts.onError || (() => {}),
@@ -95,6 +91,14 @@ export class OmniscanViewer {
 
     this._animate = this._animate.bind(this);
     this._raf = requestAnimationFrame(this._animate);
+  }
+
+  // Build a THREE.Euler from a {x,y,z}-degrees object (null → identity).
+  _toEuler(rot) {
+    const deg = Math.PI / 180;
+    return rot
+      ? new THREE.Euler((rot.x || 0) * deg, (rot.y || 0) * deg, (rot.z || 0) * deg)
+      : new THREE.Euler(0, 0, 0);
   }
 
   // -- Setup ----------------------------------------------------------------
@@ -153,6 +157,11 @@ export class OmniscanViewer {
     const rim = new THREE.DirectionalLight(0x6468d0, 0.35); // accent back-light (indigo)
     rim.position.set(-5, 2, -4);
     this.scene.add(rim);
+
+    // Belly fill — lifts the underside so the payload bay reads on the interior view.
+    const belly = new THREE.DirectionalLight(0xeaf0f6, 0.85);
+    belly.position.set(0, -5, 2);
+    this.scene.add(belly);
   }
 
   _initControls() {
@@ -181,7 +190,7 @@ export class OmniscanViewer {
     this.hotspotEl = el;
 
     this.hotspot = new CSS2DObject(el);
-    this.hotspot.position.copy(this.bayFocus);
+    this.hotspot.position.set(0, 0, 0); // repositioned on focusBay()
     this.hotspot.visible = false;
     this.scene.add(this.hotspot);
   }
@@ -497,16 +506,21 @@ export class OmniscanViewer {
     this._modelCenter = center.clone();
 
     const radius = Math.max(size.x, size.y, size.z) * 0.5 || 1;
+    this._modelRadius = radius; // reused by focusBay / focusInterior
     const fov = THREE.MathUtils.degToRad(this.camera.fov);
     const dist = (radius / Math.sin(fov / 2)) * 1.5 * (this.overviewZoom ?? 1.0);
+
+    // Pivot offset (× radius) shifts the framing towards the nose. Applied to
+    // both camera and target so it's a pure pan (angle and distance unchanged).
+    const pivot = this.overviewTargetOffset.clone().multiplyScalar(radius);
 
     // camera position driven by overviewAngle so it is configurable from content.js
     this.overviewPos = new THREE.Vector3(
       center.x + dist * this.overviewAngle.x,
       center.y + dist * this.overviewAngle.y,
       center.z + dist * this.overviewAngle.z
-    );
-    this.overviewTarget = center.clone();
+    ).add(pivot);
+    this.overviewTarget = center.clone().add(pivot);
 
     this.camera.near = Math.max(radius / 100, 0.01);
     this.camera.far = dist * 12;
@@ -518,33 +532,53 @@ export class OmniscanViewer {
     this.controls.update();
   }
 
-  /** Animates the camera to frame the payload bay and lights the hotspot. */
+  /**
+   * Compute a {pos, target} pair for a belly view from a view config
+   * ({drop, dist, dir}), using the model's bounding box. The target sits a
+   * little below the model centre (the bay is on the belly) and the camera is
+   * placed `dist` radii away along `dir`.
+   */
+  _bellyView(view) {
+    const c = this._modelCenter ? this._modelCenter.clone() : new THREE.Vector3();
+    const r = this._modelRadius || 1;
+    const target = c.clone();
+    target.y -= r * (view.drop ?? 0.15);
+    const dir = new THREE.Vector3(view.dir.x, view.dir.y, view.dir.z).normalize();
+    const pos = target.clone().add(dir.multiplyScalar(r * (view.dist ?? 1.3)));
+    return { pos, target };
+  }
+
+  /** Animates the camera to frame the payload bay (slow zoom, no label). */
   focusBay(label = '') {
     if (!this.isReady) return;
-    const target = this.bayFocus.clone();
-    const pos = this.bayFocus.clone().add(this.bayCameraOffset);
-    this._startTween(pos, target);
-
-    if (label) this._hotspotLabelEl.textContent = label;
-    this.hotspot.visible = true;
-    this.hotspotEl.classList.add('is-on');
+    const { pos, target } = this._bellyView(this.bayView);
+    this._startTween(pos, target, FOCUS_TWEEN_MS);
     this.controls.autoRotate = false;
   }
 
   /** Zoom to the interior opening (used after swapping to sem-tampa model). */
   focusInterior() {
-    if (!this.isReady || !this.interiorFocus) return;
-    const target = this.interiorFocus.clone();
-    const pos = this.interiorFocus.clone().add(this.interiorCameraOffset);
-    this._startTween(pos, target);
+    if (!this.isReady) return;
+    const { pos, target } = this._bellyView(this.interiorView);
+    this._startTween(pos, target, FOCUS_TWEEN_MS);
     this.controls.autoRotate = false;
   }
 
-  /** Swap the loaded GLB for a different URL. afterLoad: 'interior' | null */
-  swapModel(url, afterLoad) {
+  /**
+   * Swap the loaded GLB for a different URL.
+   * afterLoad: 'interior' (zoom into the opening) | 'bay' (frame the payload
+   *            bay + light the hotspot) | null (stay on the overview).
+   * label: hotspot caption used when afterLoad === 'bay'.
+   * rotation: optional {x,y,z} degrees axis-correction for this GLB.
+   */
+  swapModel(url, afterLoad, label = '', rotation) {
     if (this._swapping) return;
     this._swapping = true;
-    this._pendingAfterLoad = afterLoad === 'interior' ? () => this.focusInterior() : null;
+    if (rotation) this.modelRotation = this._toEuler(rotation);
+    this._pendingAfterLoad =
+      afterLoad === 'interior' ? () => this.focusInterior()
+      : afterLoad === 'bay' ? () => this.focusBay(label)
+      : null;
 
     // Remove current model from scene
     if (this.model) {
@@ -573,14 +607,14 @@ export class OmniscanViewer {
     this.controls.autoRotate = true;
   }
 
-  _startTween(toPos, toTarget) {
+  _startTween(toPos, toTarget, dur = CAMERA_TWEEN_MS) {
     this._tween = {
       fromPos: this.camera.position.clone(),
       toPos,
       fromTarget: this.controls.target.clone(),
       toTarget,
       start: performance.now(),
-      dur: CAMERA_TWEEN_MS,
+      dur,
     };
   }
 

@@ -73,7 +73,7 @@ export const plataforma = {
   etiqueta: 'The platform',
   titulo: 'See Omniscan. Swap the payload.',
   intro:
-    'A single Blended Wing Body airframe, fully electric VTOL. Rotate the model and pick a payload module — the camera moves in on the bay and the real sensor appears alongside.',
+    'A single Blended Wing Body airframe, fully electric VTOL. Rotate the model and pick a mission — the matching payload loads in the bay and the real sensor appears alongside.',
   // Platform spec strip (rendered as "chips")
   specs: [
     'BWB',
@@ -82,26 +82,31 @@ export const plataforma = {
     'Cruise 20 m/s',
     'Swarm operation',
   ],
-  // Helper text for the side panel before a payload is picked
+  // Helper text for the side panel before a mission is picked
   painelVazio:
-    'Pick a payload module above to frame it in the bay and see the real sensor.',
+    'Pick a mission above to load its payload in the bay and see the real sensor.',
+  // Small muted hint shown right above the mission tabs
+  seletorHint: 'Select a mission to load the corresponding payload into the bay.',
 };
 
 // 3D viewer parameters ------------------------------------------------------
-//  TUNE these after loading the real omniscan.glb. Coordinates are in the
-//  model space (same scale/origin as the GLB). See the README, section
-//  "Tuning the payload bay", for the step-by-step.
 export const viewer = {
-  modelo:          '/models/omniscan.glb',
-  modeloSemTampa:  '/models/omniscan_semtampa.glb',
+  // Model shown on load, before any mission is picked (overview of the airframe).
+  // The per-mission CADs live on each payload (see `payloads[].modelo`).
+  modeloDefault:   '/models/omniscanflora.glb',
 
-  // Payload bay zoom (click on a payload tab)
-  bayFocus:        { x: -0.6968, y: -0.1496, z: -0.0085 }, // calibrated 21-Jun-2025
-  bayCameraOffset: { x:  0.2,   y: -0.6,    z: -0.5  },    // from below, looking up
-
-  // Interior zoom (shown after swapping to sem-tampa model)
-  interiorFocus:        { x: -0.4849, y: 0.0652, z: 0.0352 }, // centre of the opening
-  interiorCameraOffset: { x: -0.15,  y: 0.35,   z: -0.45 },   // close look from above
+  // Payload-bay / interior framing. These are computed from the model's own
+  // bounding box, so they work for any CAD regardless of its scale/origin.
+  //   drop: how far below the model centre to aim (× model radius) — the bay is
+  //         on the belly, so we look slightly down on it.
+  //   dist: camera distance from that target (× model radius); smaller = closer.
+  //   dir:  camera direction from the target (x=right, y=up, z=front). The bay
+  //         opens on the belly, so the default looks UP from below-front.
+  //   The bay opens on the belly → look UP from below. The interior (cover
+  //   removed) is on TOP → look DOWN from above (positive y dir, target raised
+  //   slightly above centre via a negative drop).
+  bayView:      { drop: 0.15,  dist: 1.4, dir: { x: 0.25, y: -0.85, z: 0.45 } }, // click a mission/payload
+  interiorView: { drop: -0.10, dist: 1.1, dir: { x: 0.2,  y:  0.9,  z: 0.45 } }, // after "View interior" (from above)
 
   // Initial overview camera
   // x= right/left,  y= up/down,  z= front/back  (multipliers on auto-computed dist)
@@ -109,8 +114,18 @@ export const viewer = {
   // < 1.0 = closer,  > 1.0 = further away  (default Three.js framing = 1.5)
   overviewZoom: 0.50,
 
-  // Axis-correction rotation (degrees). SolidWorks Z-up → GLB Y-up fix.
-  modelRotation: { x: -90, y: 0, z: 0 },
+  // Shift the overview pivot off the bounding-box centre so the aircraft is framed
+  // more towards its front/nose (the geometric centre sits too far back). Units are
+  // fractions of the model radius. Same axes as overviewAngle (z = front/back);
+  // increase z to push the framing further forward, flip the sign if it goes the
+  // wrong way. Applied to every payload's overview (and after a reset).
+  overviewTargetOffset: { x: 0, y: 0, z: 0.30 },
+
+  // Axis-correction rotation (degrees). DEFAULT for the Flora/Thermal airframe
+  // (and the initial model): that GLB is already exported Y-up and level, so it
+  // needs no correction. The Magno GLB is Z-up (SolidWorks export) and overrides
+  // this with x:-90 (see payloads[]).
+  modelRotation: { x: 0, y: 0, z: 0 },
 };
 
 // Flight-video box (shown right below the 3D viewer) ------------------------
@@ -130,7 +145,12 @@ export const video = {
 
 // ---------------------------------------------------------------------------
 //  Payloads (selector data + real photo + side-panel specs)
-//  imagem: real sensor photo in /public/assets (grey placeholder if missing)
+//  imagem:    real sensor photo in /public/assets (grey placeholder if missing)
+//  missaoIds: which mission(s) this payload serves (ids from `missoes` above).
+//             The platform selector groups payloads by mission from this.
+//  modelo / modeloSemTampa: the per-payload CAD loaded when this payload is
+//             selected (and its "View interior" counterpart). Each payload has
+//             its own airframe CAD (Flora, Magno, Thermal).
 // ---------------------------------------------------------------------------
 export const payloads = [
   {
@@ -139,6 +159,9 @@ export const payloads = [
     curto: 'Flora',
     imagem: '/assets/payload-flora.jpg',
     missao: 'Demining (vegetation stress)',
+    missaoIds: ['demining'],
+    modelo:         '/models/omniscanflora.glb',
+    modeloSemTampa: '/models/omniscanflora_semtampa.glb',
     specs: [
       'MicaSense RedEdge-P',
       '5 bands: 475/560/668/717/842 nm',
@@ -153,6 +176,11 @@ export const payloads = [
     curto: 'Magno',
     imagem: '/assets/payload-magno.jpg',
     missao: 'Demining (metallic targets / UXO)',
+    missaoIds: ['demining'],
+    modelo:         '/models/omniscanmagno.glb',
+    modeloSemTampa: '/models/omniscanmagno_semtampa.glb',
+    modelRotation:  { x: -90, y: 0, z: 0 }, // Magno GLB is Z-up → needs the -90° fix
+
     specs: [
       'Stefan Mayer FLC3-70 Fluxgate',
       '< 0.5 nT RMS',
@@ -167,6 +195,9 @@ export const payloads = [
     curto: 'Thermal',
     imagem: '/assets/payload-termico.jpg',
     missao: 'Search and rescue + re-ignitions',
+    missaoIds: ['sar', 'reignition'],
+    modelo:         '/models/omniscanthermal.glb',
+    modeloSemTampa: '/models/omniscanthermal_semtampa.glb',
     specs: [
       'FLIR Lepton 3.5',
       '160 × 120 px',
