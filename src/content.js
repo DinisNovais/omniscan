@@ -138,11 +138,13 @@ export const viewer = {
 //    src: '/media/voo-omniscan.mp4'                 (tipo: 'local')
 //    src: 'https://www.youtube.com/embed/XXXXXXXX'  (tipo: 'youtube')
 export const video = {
-  titulo: 'Omniscan flight',
+  titulo: 'Omniscan prototype',
   tipo: 'local',
-  src: '',
-  poster: '/assets/hero-drone.png',
-  emBreve: 'Flight video coming soon',
+  src: '/media/IMG_1028.mp4',
+  // Shown on the neutral pre-play overlay (no poster image).
+  cta: 'Press play to watch',
+  poster: '/assets/hero-drone.png', // only used by the "coming soon" placeholder
+  emBreve: 'Prototype video coming soon',
 };
 
 // ---------------------------------------------------------------------------

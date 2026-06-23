@@ -218,11 +218,17 @@ function renderVideoBox() {
       loading="lazy" allowfullscreen
       allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"></iframe>`;
   } else if (v.src && v.tipo === 'local') {
-    inner = `<video class="video-frame" controls preload="metadata"${
-      v.poster ? ` poster="${asset(v.poster)}"` : ''
-    }>
-      <source src="${asset(v.src)}" />
-    </video>`;
+    // No poster (avoids the green pre-play frame): a neutral overlay invites the
+    // user to press play, then hides once the clip starts.
+    inner = `<video class="video-frame" id="flight-video" controls preload="metadata" playsinline>
+      <source src="${asset(v.src)}" type="video/mp4" />
+    </video>
+    <button type="button" class="video-cta" id="video-cta" aria-label="${esc(
+      v.cta || 'Press play to watch'
+    )}">
+      <span class="video-cta__icon" aria-hidden="true">▶</span>
+      <span class="video-cta__text">${esc(v.cta || 'Press play to watch')}</span>
+    </button>`;
   } else {
     const bg = v.poster
       ? ` style="background-image:url('${asset(v.poster)}')"`
@@ -404,6 +410,18 @@ function mount() {
   wireImages();
   initViewer();
   initMissionSelector();
+  initVideo();
+}
+
+// Neutral pre-play overlay: clicking it starts the clip; it hides while playing
+// and comes back when the clip ends (to invite a replay).
+function initVideo() {
+  const cta = document.getElementById('video-cta');
+  const vid = document.getElementById('flight-video');
+  if (!cta || !vid) return;
+  cta.addEventListener('click', () => vid.play());
+  vid.addEventListener('play', () => { cta.hidden = true; });
+  vid.addEventListener('ended', () => { cta.hidden = false; });
 }
 
 // Loads every img[data-src] and, on error, applies its fallback strategy:
